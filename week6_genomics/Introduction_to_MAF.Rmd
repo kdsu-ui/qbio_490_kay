@@ -1,0 +1,146 @@
+---
+title: "Introduction to MAF"
+author: Joshua Lin, Christopher Kim, Erika Li, Jeanne Revilla, Mahija Mogalipuvvu, adapted from Nicole Black, Wade Boohar
+date: 07/17/22
+updated: 10/12/2026
+---
+
+***Deliverables***
+- upload this R Notebook to your GitHub and submit the link to your Repo on Brightspace
+- include ALL graphs or figures created in this assignment in a folder with your R notebook with descriptive file names.
+
+We encourage you to work with a partner. Therefore, it is okay if your answers are the same as your partner’s as long as everyone understands it and could explain it in their own words if asked. Each person must individually push their code to Github. *If you do work with a partner, at the top of your R Notebook, write the name of you and your partner(s) as a comment.*
+
+***Complete the following coding activity and answer any following questions as comments in your R Notebook***
+
+In this assignment, you will need to use your skills learned in class to demonstrate your understanding of categorical variables and R data structures.
+
+*Pre-Assignment*
+Load all necessary packages, read in the clinical data.csv file you have in your analysis_data folder, and 
+instantiate the MAF_object.
+```{r}
+library(maftools)
+library(TCGAbiolinks)
+
+clinic <- read.csv("/home1/kdsu/490_cluster/analysis_data/brca_clinical_data.csv")
+```
+
+It's useful to save your MAF_object, so that you don't have to go through the trouble of querying and preparing it everytime. The saveRDS function allows us to save an R object, allowing us to access it directly from our files. 
+```{r}
+maf_query <- GDCquery(project = "TCGA-BRCA", data.category = "Simple Nucleotide Variation", access = "open", data.type = "Masked Somatic Mutation", workflow.type = "Aliquot Ensemble Somatic Variant Merging and Masking")
+
+maf <- GDCprepare(maf_query,directory = "/home1/kdsu/490_cluster/analysis_data/GDCdata")
+
+maf_object <- read.maf(maf = maf, clinicalData = clinic, isTCGA = TRUE)
+
+saveRDS(maf_object, file = "/home1/kdsu/490_cluster/analysis_data/maf_object.rds")
+# ex. saveRDS(MAF_object, file = "/home1/yourname/490_cluster/analysis_data/maf_object.rds")
+
+```
+
+When you reopen a new R session and want to access your MAF_object, you can use the readRDS function to load the object back into a new variable.
+```{r}
+MAF_object <- readRDS(file = "/home1/kdsu/490_cluster/analysis_data/maf_object.rds")
+# ex. MAF_object <- readRDS(file = "/home1/yourname/490_cluster/analysis_data/maf_object.rds")
+```
+
+*1*
+Choose a clinical variable (or any variable from clin_rad or clin_drug) to separate your populations into two different groups and rewrite the column or create a new column with that variable as a factor. ***Do not use age or vital_status as your clinical variable.*** Hint: if your variable is continuous, you will need to determine your own cutoffs for the different levels of the factor. If your variable is categorical and has more than two possible values, choose the two that are the most common.
+```{r}
+tumor_mask <- clinic$tumor_status == "TUMOR FREE" |
+              clinic$tumor_status == "WITH TUMOR"
+
+clinic_tumor <- clinic[tumor_mask, ]
+
+clinic_tumor$tumor_status <- as.factor(clinic_tumor$tumor_status)
+
+table(clinic_tumor$tumor_status)
+```
+
+
+*2*
+Create a co-oncoplot with the top 10-20 (you choose) most mutated genes for the two groups. Pick one that has a large discrepancy in % mutated or type of mutations between the groups and research it. 
+Research it. What is the gene used for? Can you think of any reason for the discrepancy?
+```{r}
+tumor_free_ids <- clinic_tumor$Tumor_Sample_Barcode[clinic_tumor$tumor_status == "TUMOR FREE"]
+
+with_tumor_ids <- clinic_tumor$Tumor_Sample_Barcode[clinic_tumor$tumor_status == "WITH TUMOR"]
+
+maf_tumor_free <- subsetMaf(maf = maf_object, tsb = tumor_free_ids)
+
+maf_with_tumor <- subsetMaf(maf = maf_object, tsb = with_tumor_ids)
+
+top_genes <- head(getGeneSummary(maf_object)$Hugo_Symbol, 15)
+
+coOncoplot(
+  m1 = maf_tumor_free,
+  m2 = maf_with_tumor,
+  m1Name = "Tumor Free",
+  m2Name = "With Tumor",
+  genes = top_genes,
+  removeNonMutated = TRUE
+)
+```
+# I chose PTEN because it was mutated in about 3.9% of the Tumor Free group  compared with 12.0% of the With Tumor group. PTEN is a tumor suppressor gene that helps regulate cell growth through the PI3K/AKT pathway. Loss of PTEN can promote cancer growth, which may explain why PTEN mutations were more common in patients who still had tumors.
+
+*3*
+Create a contingency table with your variable and chosen gene. Run a Fisher’s Exact Test between presence of mutations for that gene and your clinical variable. Create and save a mosaic plot. 
+Interpret the output of the Fisher’s Exact Test in terms of the odds ratio and p-value.
+```{r}
+pten_mutated <- unique(
+  maf_object@data$Tumor_Sample_Barcode[
+    maf_object@data$Hugo_Symbol == "PTEN"
+  ]
+)
+
+clinic_tumor$PTEN_status <- ifelse(
+  clinic_tumor$Tumor_Sample_Barcode %in% pten_mutated,
+  "Mutated",
+  "Not Mutated"
+)
+
+pten_table <- table(
+  clinic_tumor$tumor_status,
+  clinic_tumor$PTEN_status
+)
+
+pten_table
+
+pten_fisher <- fisher.test(pten_table)
+pten_fisher
+
+mosaicplot(
+  pten_table,
+  main = "PTEN Mutation Status by Tumor Status",
+  xlab = "Tumor Status",
+  ylab = "PTEN Mutation Status")
+```
+# The p-value is 0.0032, so there is a statistically significant association between PTEN mutation and tumor status. PTEN mutations were more common in patients WITH TUMOR. The odds of a PTEN mutation were about 3.36 times higher in the WITH TUMOR group than the TUMOR FREE group.
+
+*4*
+Subset your maf_object based on your chosen clinical variable and create a co-lollipop plot of your chosen gene divided between the two different clinical variable possibilities. Include descriptive names on your plot.
+Do you notice any difference in terms of mutations (e.g. sites, types, number) between the two populations?
+```{r}
+lollipopPlot2(m1 = maf_tumor_free, m2 = maf_with_tumor, gene = "PTEN", m1_name = "Tumor Free", m2_name = "With Tumor")
+```
+# PTEN mutations were more common in the With Tumor group (12.35%) than in the Tumor Free group (3.88%). Both groups had mutations across similar regions of PTEN and showed several different mutation types. The main difference was the higher frequency of PTEN mutations in the With Tumor group.
+
+*5*
+Create your Overall_Survival_Status column and create a mafSurvival KM plot based on mutations in your chosen gene.
+Does there seem to be a difference? Hypothesize why or not based on the other analysis you did with the gene above.
+```{r}
+# Create Overall Survival Status
+clinic$Overall_Survival_Status <- ifelse(clinic$vital_status == "Dead", 1, 0)
+
+# Create Overall Survival Time
+clinic$Overall_Survival_Time <- ifelse(clinic$death_days_to == "[Not Applicable]", clinic$last_contact_days_to, clinic$death_days_to)
+
+clinic$Overall_Survival_Time <- as.numeric(clinic$Overall_Survival_Time)
+
+# Remove patients without survival information
+survival_clinic <- clinic[!is.na(clinic$Overall_Survival_Time) & !is.na(clinic$Overall_Survival_Status),]
+
+# PTEN survival plot
+mafSurvival( maf = maf_object, genes = "PTEN", clinicalData = survival_clinic, time = "Overall_Survival_Time", Status = "Overall_Survival_Status", groupNames = c("PTEN Mutant", "PTENWT"))
+```
+# There does not appear to be a significant difference in survival between PTEN-mutant and PTEN-WT patients (p = 0.476). Although PTEN mutations were more common in the With Tumor group, PTEN mutation alone may not be enough to strongly affect overall survival. The small number of PTEN-mutant patients may also make it harder to detect a difference.
