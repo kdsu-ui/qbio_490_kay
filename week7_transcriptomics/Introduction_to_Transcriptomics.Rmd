@@ -24,7 +24,7 @@ Set your working directory
 (run getwd() in the console -- the small window below the main script area -- to check that the working directory is analysis_data)
 (if getwd() prints the wrong directory, run setwd("PATH TO anaylysis_data"))
 ```{r setup}
-      knitr::opts_knit$set(root.dir = normalizePath("PATH TO analysis_data")) 
+knitr::opts_knit$set(root.dir = normalizePath("/home1/kdsu/490_cluster/analysis_data"))
 ```
 
 Download and load packages
@@ -60,9 +60,9 @@ str(rna_se)
 
 Use the dim() function to find the dimensions of the colData, rowRanges@elementMetadata, and unstranded dataframes. Record them below:
 
-  ~ colData (rows, cols): [Fill In]
-  ~ rowRanges@elementMetadata: [Fill In]
-  ~ rna_se@assays@data$unstranded: [Fill In]
+~ colData (rows, cols): 1231, 94
+~ rowRanges@elementMetadata: 60660, 10
+~ rna_se@assays@data$unstranded: 60660, 1231
 
 ```{r Exercise 1.2}
 # write code here
@@ -73,15 +73,17 @@ dim(rna_se@assays@data$unstranded)
 ```
 
 Fill out a description of the rows/columns of our data frames. You can use this as a cheat sheet moving forward.
-  ~ colData
-        - Rows: [Fill In]
-        - Columns: [Fill In]
-  ~ rowRanges@elementMetadata
-        - Rows: [Fill In]
-        - Columns: [Fill In]
-  ~ unstranded (in assays)
-        - Rows: [Fill In]
-        - Columns: [Fill In]
+~ colData
+      - Rows: samples
+      - Columns: clinical/sample information
+
+~ rowRanges@elementMetadata
+      - Rows: genes
+      - Columns: gene information
+
+~ unstranded (in assays)
+      - Rows: genes
+      - Columns: samples
   
 ```{r Exercise 1.3}
 # colData: 
@@ -92,7 +94,8 @@ colnames(rna_se@colData)
 rownames(rna_se@rowRanges@elementMetadata)
 colnames(rna_se@rowRanges@elementMetadata)
 
-# what are the rows...?
+# what are the rows...? 
+#The rows represent genes/gene IDs.
 
 # unstranded: 
 rownames(rna_se@assays@data$unstranded)
@@ -100,6 +103,7 @@ colnames(rna_se@assays@data$unstranded)
 
 # what are these?
 # Hint: Do the rows/cols match dimensions of other dataframes?
+# The rows are genes and match rowRanges. The columns are sample IDs and match the rows of colData.
 
 ```
 
@@ -114,13 +118,13 @@ rna_se@colData$age_at_index[1:15]
 ```
 
 Call the *summary()* function on the *age_at_index* column. Record the output below:
-    Min.: 
-    1st Qu.: 
-    Median: 
-    Mean: 
-    3rd Qu.: 
-    Max.: 
-    NA's: 
+    Min.: 26.00
+    1st Qu.: 48.00
+    Median: 58.00
+    Mean: 67.00
+    3rd Qu.: 67.00
+    Max.: 89.00
+    NA's: 1
     
 ```{r Exercise 2.2}
 summary(rna_se@colData$age_at_index)
@@ -151,6 +155,8 @@ colnames_mask <- !(colnames(rna_clinical) %in% c("treatments", "primary_site", "
 #we are masking out COLUMNS here, so the comma before the mask.
 rna_clinical <- rna_clinical[,colnames_mask]
 
+colnames(rna_clinical)[sapply(rna_clinical, is.list)]
+
 ```
 
 
@@ -171,7 +177,7 @@ Call *head()* on *rowRanges@elementMetadata*:
 
 ```{r Exercise 3.1}
 # write code here
-head()
+head(rna_se@rowRanges@elementMetadata)
 
 ```
 
@@ -185,19 +191,20 @@ rna_genes <- rna_se@rowRanges@elementMetadata
 Use the *as.data.frame()* function on *rna_genes* to change it from an S4 object to a data frame object.
 
 ```{r Exercise 3.3}
-rna_genes <- as.data.frame()
+rna_genes <- as.data.frame(rna_genes)
 
 ```
 
 ###### (4) Assays - RNA expression data
 
 What are the names of the 6 assays?
-1. 
-2.
-3.
-4. 
-5. 
-6. 
+1. unstranded 
+2. stranded_first
+3. stranded_second
+4. tpm_unstrand
+5. fpkm_unstrand
+6. fpkm_uq_unstrand
+
 
 ```{r Exercise 4.1}
 # access the assays here
@@ -208,9 +215,8 @@ rna_se@assays@data
 Create a new data frame called "rna_counts" that contains the data from *unstranded*.
 ```{r Exercise 4.2}
 
-rna_counts <- rna_se@assays@data$[FILL IN]
-rna_counts <- as.data.frame('FILL IN')
-
+rna_counts <- rna_se@assays@data$unstranded
+rna_counts <- as.data.frame(rna_counts)
 ```
 
 
@@ -228,7 +234,7 @@ rna_counts <- rna_counts[,age_NA_mask]
 Inspect the data for the first 5 patients (columns 1-5) and the first 15 genes (rows 1-15).
 
 ```{r Exercise 4.3}
-rna_counts[]
+rna_counts[1:15, 1:5]
 
 ```
 
@@ -238,7 +244,8 @@ rna_counts[]
 Call *rownames()* and *colnames()* on *rna_clinical*.
 
 ```{r Exercise 5.1}
-
+rownames(rna_clinical)
+colnames(rna_clinical)
 ```
 
 Just like we did to "clinical", we are going to create a column in *rna_clinical* named *age_category* to split apart younger and older patients. Our cutoff will be "young" as <= 58 y/o, and "old" as > 58 y/o.
@@ -258,7 +265,7 @@ Remember: ifelse(expression, x, y), where x happens if the expression is true, a
 Just like we did to "clinical", we are going to create a column in *rna_clinical* for *age_category*. Our cutoff will be "young" as <= 58 y/o, and "old" as > 58 y/o.
 
 ```{r Exercise 5.4}
-rna_clinical$age_category <- ifelse()
+rna_clinical$age_category <- ifelse( rna_clinical$age_at_index <= 58,"young", "old")
 
 ```
 
@@ -267,6 +274,8 @@ rna_clinical$age_category <- ifelse()
 Let's move on to *rna_genes*. Call *rownames()* and *colnames()* on *rna_genes*.
 
 ```{r Exercise 5.5}
+rownames(rna_genes)
+colnames(rna_genes)
 
 ```
 
@@ -276,7 +285,6 @@ Oh no! These row names don't look very informative. We know that the rows in *rn
 
 rownames(rna_genes) <- rna_genes$gene_id
 
-rownames(rna_genes) <- rna_genes$gene_name
 
 ```
 
@@ -287,15 +295,17 @@ Now that *rna_genes* has informative row/column names, let's move on to *rna_cou
 
 ```{r Exercise 5.7}
 
+rownames(rna_counts)
+colnames(rna_counts)
+
 ```
 
 Uh oh! Looks like neither the row nor column names are very informative. Given what we did to the other data frames, add column and row names to *rna_counts*. Name the columns based on the patient barcodes (ie the row names for *rna_clinical*), and name the rows based on the gene id's (ie the row names for *rna_genes*).
 
 ```{r Exercise 5.8}
 
-rownames(rna_counts) <- [FILL IN]
-colnames(rna_counts) <- [FILL IN]
-
+rownames(rna_counts) <- rownames(rna_genes)
+colnames(rna_counts) <- rownames(rna_clinical)
 ```
 
 Now, if we look at the data, we'll see the row names set as the gene IDs and the column names as the patient sample barcodes.
