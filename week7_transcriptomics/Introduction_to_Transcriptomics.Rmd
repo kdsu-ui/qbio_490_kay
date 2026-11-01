@@ -356,7 +356,7 @@ Once again, use the knitr function to set your working directory to your analysi
 (run getwd() in the console -- the small window below the main script area -- to check that the working directory is analysis_data)
 (if getwd() prints the wrong directory, run setwd("PATH TO anaylysis_data"))
 ```{r setup}
- knitr::opts_knit$set(root.dir = normalizePath("/PATH/TO/analysis_data"))
+knitr::opts_knit$set(root.dir = normalizePath("/home1/kdsu/490_cluster/analysis_data"))
 ```
 
 If DESeq2 is not already installed, install it now
@@ -383,8 +383,11 @@ In this assignment, you will run differential expression analysis comparing pati
 
 Manipulate those columns so that they are ready for differential expression analysis (hint: what kind of variables are they? what data type are they by default? do you need to handle unknown values?) Filter out genes with a total expression across all patients less than 1000.
 ```{r}
-
-
+table(rna_clinical$definition)
+rna_clinical$definition <- as.factor(rna_clinical$definition)
+rna_clinical$age_at_index <- as.numeric(rna_clinical$age_at_index)
+gene_filter <- rowSums(rna_counts) >= 1000
+rna_counts <- rna_counts[gene_filter, ]
 ```
 
 
@@ -393,30 +396,34 @@ Perform the differential expression analysis, All you need to do is fill in the 
 
 IMPORTANT: save the *results* data frame in your *analysis_data* directory using the last two commands in the chunk below. We will be using this for future assignments.
 ```{r}
-dds <- DESeqDataSetFromMatrix(countData = #fill in,
-                              colData = #fill in,
-                              design= #fill in)
+
+dds <- DESeqDataSetFromMatrix(countData = rna_counts,
+                              colData = rna_clinical,
+                              design = ~ age_at_index + definition)
 
 dds_obj <- DESeq(dds)
 
 resultsNames(dds_obj)
 
-results <- results(dds_obj, format = "DataFrame", contrast = c(#variable name, #numerator , #denominator))
+levels(dds_obj$definition)
+
+results <- results(
+  dds_obj,
+  format = "DataFrame",
+  contrast = c("definition", "Primary solid Tumor", "Solid Tissue Normal")
+)
 
 results <- data.frame(results)
 
-### save in .csv and .rds
-
-write.csv(results, "brca_DESeq_results.csv", row.names = T)
-# read in later using: results = read.csv("brca_DESeq_results.csv", row.names = 1)
+write.csv(results, "brca_DESeq_results.csv", row.names = TRUE)
 
 saveRDS(results, "brca_DESeq_results.rds")
-# read in later using: results = readRDS("brca_DESeq_results.rds")
+
 ```
 
 Prepare results dataframe for EnhancedVolcano plotting. Add column "gene_name". Fill in the column appropriately.
 ```{r}
-
+results$gene_name <- rna_genes[rownames(results), "gene_name"]
 ```
 
 *4*
@@ -429,15 +436,16 @@ EnhancedVolcano(results,
                 title = 'Sample Definition: Tumor vs Normal Tissue',
                 pointSize = 1.0,
                 labSize = 5.0)
+
 ```
 
 *5*
 # Explain what genes from each part of the Volcano Plot mean in terms of their significance and up/down regulation. 
-top-right genes: 
-bottom-right genes: 
-top-left genes: 
-bottom-left genes: 
-top-middle genes: 
-bottom-middle genes: 
+top-right genes: upregulated in tumor tissue
+bottom-right genes: genes are upregulated in tumor tissue, but the difference is not statistically significant
+top-left genes: significantly downregulated in tumor tissue
+bottom-left genes: downregulated in tumor tissue, but the difference is not statistically significant
+top-middle genes: statistically significant, but there is not a large difference in expression between tumor and normal tissue
+bottom-middle genes: not statistically significant and do not have a large difference in expression between tumor and normal tissue
 
 Save the picture of the volcano plot (using either ggsave() or right clicking and manually downloading the image) and push this .Rmd file and the volcano plot to your personal GitHub repository.
