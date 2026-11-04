@@ -135,16 +135,11 @@ rna_counts <- read.csv("brca_rna_count_data.csv", row.names = 1, check.names = F
 
 ```{r}
 # Extract genes of interest
-de_results$gene_name <- rna_genes$gene_name[
-  as.numeric(rownames(de_results))]
+de_results$gene_name <- rna_genes$gene_name[as.numeric(rownames(de_results))]
 
-downregulated <- de_results[
-  de_results$log2FoldChange < -1 & de_results$padj < 0.05,
-  "gene_name"]
+downregulated <- de_results[de_results$log2FoldChange < -1 & de_results$padj < 0.05, "gene_name"]
 
-hypermethylated <- dat[
-  dat$foldchange > 1,
-  "geneName"]
+hypermethylated <- dat[dat$foldchange > 1, "geneName"]
 
 interest_genes <- intersect(downregulated, hypermethylated)
 
@@ -174,9 +169,7 @@ methylation_metastatic <- betas[gene_betas_mask, methylation_clinical_metastatic
 
 ```{r}
 # Show transcriptional differences
-boxplot(rna_primary, rna_metastatic, xlab='Group', ylab='Counts',
-        names=c('Primary solid Tumor', 'Metastatic'),
-        col=c("blue","red"))
+boxplot(rna_primary, rna_metastatic, xlab='Group', ylab='Counts', names=c('Primary solid Tumor', 'Metastatic'), col=c("blue","red"))
 ```
 
 ```{r}
